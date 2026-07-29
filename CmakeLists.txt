@@ -1,0 +1,39 @@
+cmake_minimum_required(VERSION 3.20)
+
+project(Emux
+    VERSION 0.1
+    LANGUAGES CXX
+)
+
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+include(FetchContent)
+
+FetchContent_Declare(
+    CLI11
+    GIT_REPOSITORY https://github.com/CLIUtils/CLI11.git
+    GIT_TAG v2.4.2
+)
+
+FetchContent_MakeAvailable(CLI11)
+
+file(GLOB_RECURSE EMUX_SOURCES CONFIGURE_DEPENDS
+    src/*.cpp
+)
+
+add_executable(emux ${EMUX_SOURCES})
+
+
+target_include_directories(
+    emux
+    PRIVATE
+    include
+)
+
+target_link_libraries(
+    emux
+    PRIVATE
+    CLI11::CLI11
+)

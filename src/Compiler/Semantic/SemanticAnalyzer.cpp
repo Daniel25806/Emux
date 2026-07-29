@@ -1,0 +1,295 @@
+#include <Emux/Compiler/Semantic/SemanticAnalyzer.hpp>
+
+#include <Emux/Compiler/AST/Program.hpp>
+
+#include <Emux/Compiler/Semantic/TypeParser.hpp>
+
+
+namespace Emux
+{
+
+SemanticAnalyzer::SemanticAnalyzer(
+    CompilerContext& context
+):
+    m_Context(context)
+{
+}
+
+
+void SemanticAnalyzer::Analyze()
+{
+    auto& program = *m_Context.AST;
+    m_VisitStates.clear();
+
+    for(auto& child : program.Children)
+    {
+        auto* section = dynamic_cast<SectionNode*>(
+            child.get()
+        );
+
+        AnalyzeSection(
+            *section
+        );
+    }
+
+    if (!program.FindSection("Main"))
+    {
+        m_Context.Diagnostics.Add(
+            DiagnosticLevel::Fatal,
+            {m_Context.Source.GetName(),0,0,0},
+            "Section 'Main' not found! This is entry point"
+        );
+    }
+}
+
+
+
+void SemanticAnalyzer::AnalyzeSection(
+    SectionNode& section
+)
+{
+    std::string_view name = section.Name.Text;
+    if (IsVisited(name)) return;
+
+    if(!section.Dependencies.empty()){
+        AnalyzeDependencies(section);
+    }
+
+    if(name == "Vars")
+    {
+        m_Variables.clear();
+    }
+
+    for(auto& child : section.Children)
+    {
+        if(
+            VariableNode* variable = dynamic_cast<VariableNode*>(child.get()); 
+            variable != nullptr
+        )
+        {
+            AnalyzeVariable(
+                *variable
+            );
+        } else if(
+            FunctionNode* function = dynamic_cast<FunctionNode*>(child.get()); 
+            function != nullptr
+        )
+        {
+            AnalyzeFunction(
+                *function,
+                section
+            );
+        }
+    }
+
+    m_VisitStates[name] = VisitState::Visited;
+}
+
+void SemanticAnalyzer::AnalyzeDependencies(
+    SectionNode& section
+)
+{
+    for(auto& dependency : section.Dependencies)
+    {
+        AnalyzeDependence(section, dependency, section.Name.Text);
+    }
+}
+
+void SemanticAnalyzer::AnalyzeDependence(
+    SectionNode& section,
+    const Token& dependency,
+    std::string_view rootName
+)
+{
+    auto& program = *m_Context.AST;
+    std::string_view name = dependency.Text;
+
+    if (IsVisiting(name))
+    {
+        std::string message = "Circular dependency involving '" +
+            std::string(rootName) + "','" +
+            std::string(name) + "'.";
+        m_Context.Diagnostics.Add(
+            DiagnosticLevel::Error,
+            section.Name.Location,
+            message
+        );
+    } else if (IsVisited(name))
+    {
+        return;
+    } else {
+        m_VisitStates[name] = VisitState::Visiting;
+        auto depNode = program.FindSection(name);
+        if (!depNode) 
+        {
+            std::string message = "Section '" + std::string(name) + "' not found, required for '" + std::string(rootName) + "'";
+            m_Context.Diagnostics.Add(
+                DiagnosticLevel::Error,
+                section.Name.Location,
+                message
+            );
+        } else {
+            AnalyzeSection(*depNode);
+        }
+    }
+    m_VisitStates[name] = VisitState::Visited;
+}
+
+void SemanticAnalyzer::AnalyzeVariable(
+    VariableNode& variable
+)
+{
+    std::string name = variable.Name.Text;
+
+
+    if(m_Variables.contains(name))
+    {
+        m_Context.Diagnostics.Add(
+            DiagnosticLevel::Error,
+            variable.Name.Location,
+            "Variable '" + name + "' already defined."
+        );
+
+        return;
+    }
+
+
+    m_Variables.insert(name);
+
+
+    auto type = TypeParser::Parse(
+        variable.Type.Text
+    );
+
+
+    if(!type)
+    {
+        m_Context.Diagnostics.Add(
+            DiagnosticLevel::Error,
+            variable.Type.Location,
+            "Unknown type '" +
+            variable.Type.Text +
+            "'."
+        );
+    }
+}
+
+void SemanticAnalyzer::AnalyzeFunction(
+    FunctionNode& function,
+    SectionNode& section
+)
+{
+    const std::string& name = section.Name.Text + "::" + function.Name.Text;
+
+
+    if(m_Functions.contains(name))
+    {
+        m_Context.Diagnostics.Add(
+            DiagnosticLevel::Error,
+            function.Name.Location,
+            "Function '" + name + "' already defined."
+        );
+
+        return;
+    }
+
+
+    m_Functions.insert(name);
+
+
+    auto rtype = TypeParser::Parse(
+        function.ReturnType.Text
+    );
+
+
+    if(!rtype)
+    {
+        m_Context.Diagnostics.Add(
+            DiagnosticLevel::Error,
+            function.ReturnType.Location,
+            "Unknown return type '" +
+            function.ReturnType.Text +
+            "' in function '" +
+            name +
+            "'."
+        );
+    }
+
+    std::unordered_set<std::string_view> Params;
+    for (const auto& param : function.Parameters)
+    {
+        const std::string& pname = param.Name.Text;
+
+        if(Params.contains(pname))
+        {
+            m_Context.Diagnostics.Add(
+                DiagnosticLevel::Error,
+                param.Name.Location,
+                "Parameter '" + 
+                pname + 
+                "' in function '" +
+                name +
+                "' already defined."
+            );
+
+            return;
+        }
+
+
+        Params.insert(pname);
+
+
+        auto ptype = TypeParser::Parse(
+            param.Type.Text
+        );
+
+
+        if(!ptype)
+        {
+            m_Context.Diagnostics.Add(
+                DiagnosticLevel::Error,
+                param.Type.Location,
+                "Unknown parameter type '" +
+                param.Type.Text +
+                "' in function '" +
+                name +
+                "'."
+            );
+        }
+    }
+}
+
+bool SemanticAnalyzer::IsVisited(std::string_view name)
+{
+    if (const auto it = m_VisitStates.find(name); it != m_VisitStates.cend())
+    {
+        if (it->second == VisitState::Visited){
+            return true;
+        }
+    }
+    return false;
+}
+
+bool SemanticAnalyzer::IsVisiting(std::string_view name)
+{
+    if (const auto it = m_VisitStates.find(name); it != m_VisitStates.cend())
+    {
+        if (it->second == VisitState::Visiting){
+            return true;
+        }
+    }
+    return false;
+}
+
+bool SemanticAnalyzer::IsVisitedOrVisiting(std::string_view name)
+{
+    if (const auto it = m_VisitStates.find(name); it != m_VisitStates.cend())
+    {
+        if (it->second != VisitState::NotVisited){
+            return true;
+        }
+    }
+    return false;
+}
+
+}
