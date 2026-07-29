@@ -38,7 +38,7 @@ func _Start() -> u8 {
 
 Em Emux, variáveis só podem ser definidas na seccão Vars, e devem respeitar a sintaxe: `nome : tipo`, por exemplo `a : u8`.
 
-Os tipos são definidos no primeiro caractere a seguir aos :, e são u de unsigned, i de int, f de float. Os caracteres seguintes representam o tamanho em bits caso a letra seja minuscúla `u`, ou bytes caso seja maiuscúla `U`. Ainda temos um tipo especial, b ou B, que representa um bloco na memória é o unico que pode ter mais que 64 bits(ou 8 bytes).
+Os tipos são definidos no primeiro caractere a seguir aos `:`, e são `u` de unsigned, `i` de int, `f` de float. Os caracteres seguintes representam o tamanho em bits caso a letra seja minuscúla `u`, ou bytes caso seja maiuscúla `U`. Ainda temos um tipo especial, `b` ou `B`, que representa um bloco na memória é o unico que pode ter mais que 64 bits(ou 8 bytes).
 
 Os valores das váriaveis podem ser alterados com `=`.
 
