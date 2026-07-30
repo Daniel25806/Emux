@@ -6,7 +6,9 @@
 #include <Emux/Compiler/CompilerContext.hpp>
 #include <Emux/Compiler/AST/SectionNode.hpp>
 #include <Emux/Compiler/AST/VariableNode.hpp>
+//#include <Emux/Compiler/AST/VariableCallNode.hpp>
 #include <Emux/Compiler/AST/FunctionNode.hpp>
+//#include <Emux/Compiler/AST/FunctionCallNode.hpp>
 
 namespace Emux
 {
@@ -49,12 +51,20 @@ private:
     void AnalyzeVariable(
         VariableNode& variable
     );
-
+/*
+    void AnalyzeVariableCall(
+        VariableCallNode& variable
+    );
+*/
     void AnalyzeFunction(
         FunctionNode& function,
         SectionNode& section
     );
-
+/*
+    void AnalyzeFunctionCall(
+        FunctionCallNode& function
+    );
+*/
     bool IsVisited(std::string_view name);
     bool IsVisiting(std::string_view name);
     bool IsVisitedOrVisiting(std::string_view name);

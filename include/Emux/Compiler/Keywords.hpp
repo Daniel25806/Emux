@@ -7,7 +7,7 @@ namespace Emux
 	
 std::array<std::string, 2> keywords {
 	"func",
-	"switch"
+	"return"
 };
 
 }

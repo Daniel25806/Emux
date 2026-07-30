@@ -8,10 +8,13 @@ enum class NodeType
     Program,
     Section,
     Variable,
+    VariableCall,
     Function,
-    Call,
+    FunctionCall,
     Assign,
-    Binary
+    Binary,
+    Literal,
+    Return
 };
 
 }

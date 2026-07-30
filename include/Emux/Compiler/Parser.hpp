@@ -55,8 +55,12 @@ private:
     void Synchronize();
     
     bool IsSectionStart() const;
+    bool IsFunctionStart() const;
     bool IsFunctionStart(const Token& token) const;
+    bool IsVarsSection() const;
     bool IsVarsSection(const Token& token) const;
+    bool IsLiteral() const;
+    bool IsLiteral(const Token& token) const;
 
 private:
 
@@ -72,6 +76,8 @@ private:
     void ParseFunctionCall(Node& node);
     void ParseVariableCall(Node& node);
     void ParseAssignment(Node& node);
+    void ParseLiteral(Node& node);
+    void ParseReturn(Node& node);
 
     void ParseStatement(Node& node);
 

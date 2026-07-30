@@ -29,9 +29,7 @@ uint64_t MemoryView::Read(const MemoryVariable& variable) const
 
     if(variable.Bits < 64)
     {
-        uint64_t mask =
-            (1ULL << variable.Bits) - 1;
-
+        uint64_t mask = (1ULL << variable.Bits) - 1;
 
         value &= mask;
     }

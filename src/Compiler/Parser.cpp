@@ -1,14 +1,18 @@
 #include <Emux/Compiler/Parser.hpp>
 #include <Emux/Compiler/AST/SectionNode.hpp>
 #include <Emux/Compiler/AST/VariableNode.hpp>
+#include <Emux/Compiler/AST/VariableCallNode.hpp>
 #include <Emux/Compiler/AST/FunctionNode.hpp>
 #include <Emux/Compiler/AST/FunctionCallNode.hpp>
 #include <Emux/Compiler/AST/AssignmentNode.hpp>
+#include <Emux/Compiler/AST/LiteralNode.hpp>
+#include <Emux/Compiler/AST/ReturnNode.hpp>
 #include <stdexcept>
+#include <charconv>
+#include <cctype>
 
 namespace Emux
 {
-	
 
 Parser::Parser(
     CompilerContext& context
@@ -130,11 +134,28 @@ void Parser::Synchronize()
     }
 }
 
+bool Parser::IsSectionStart() const
+{
+    return Check(
+        TokenType::LeftBracket
+    );
+}
+
+bool Parser::IsVarsSection() const
+{
+    return Current().Text == "Vars";
+}
+
 bool Parser::IsVarsSection(
     const Token& token
 ) const
 {
     return token.Text == "Vars";
+}
+
+bool Parser::IsFunctionStart() const
+{
+    return Current().Text == "func";
 }
 
 bool Parser::IsFunctionStart(
@@ -144,11 +165,16 @@ bool Parser::IsFunctionStart(
     return token.Text == "func";
 }
 
-bool Parser::IsSectionStart() const
+bool Parser::IsLiteral() const
 {
-    return Check(
-        TokenType::LeftBracket
-    );
+    return Check(TokenType::Number) || Check(TokenType::String);
+}
+
+bool Parser::IsLiteral(
+    const Token& token
+) const
+{
+    return (token.Type == TokenType::Number) || (token.Type == TokenType::String);
 }
 
 void Parser::Parse()
@@ -366,7 +392,7 @@ void Parser::ParseVariable(
 
 
     variable->Name = name->get();
-
+    m_Variables.insert(name->get().Text);
 
     variable->Type = type->get();
 
@@ -597,6 +623,12 @@ void Parser::ParseExpression(
         } else {
             ParseVariableCall(node);
         }
+    } else if (Check(TokenType::Keyword))
+    {
+        Token curr = Current();   
+    } else if (IsLiteral())
+    {
+        ParseLiteral(node);
     }
 }
 
@@ -750,7 +782,36 @@ void Parser::ParseFunctionCall(Node& node)
 
 void Parser::ParseVariableCall(Node& node)
 {
-    Advance();
+    auto nameToken = Consume(
+        TokenType::Identifier,
+        "Expected name of variable"
+    );
+
+    if (!nameToken) {
+        Advance();
+        Synchronize();
+        return;
+    }
+
+    std::string nameText = nameToken->get().Text;
+
+    if (!m_Variables.contains(nameText))
+    {
+        m_Context.Diagnostics.Add(
+            DiagnosticLevel::Error,
+            nameToken->get().Location,
+            "Variable '" + nameText + "' not defined."
+        );
+        Synchronize();
+        return;
+    }
+
+    auto varCallNode = std::make_unique<VariableCallNode>(
+        nameToken->get(),
+        nameToken->get().Location
+    );
+
+    node.Children.push_back(std::move(varCallNode));
 }
 
 void Parser::ParseAssignment(Node& node)
@@ -781,31 +842,109 @@ void Parser::ParseAssignment(Node& node)
         return;
     }
 
-    if (!Check(TokenType::Number) && !Check(TokenType::String))
-    {
-        m_Context.Diagnostics.Add(
-            DiagnosticLevel::Error,
-            Current().Location,
-            "Unknown type '"+
-            Current().Text+
-            "'."
-        );
-        return;
-    }
-    auto value = Current();
-
     auto assignNode = std::make_unique<AssignmentNode>(
         varToken->get(),
-        value,
-        Current().Location
+        varToken->get().Location
     );
 
+    ParseExpression(*assignNode);
+
     node.Children.push_back(std::move(assignNode));  
+}
+
+void Parser::ParseLiteral(Node& node)
+{
+    if (!Check(TokenType::Number) && !Check(TokenType::String))
+    {
+        return;
+    }
+
+    Token value { Current() };
+    Token type {
+        .Type { TokenType::Identifier },
+        .Location { value.Location }
+    };
+
+    if (Check(TokenType::Number))
+    {
+        std::int64_t amount = 0;
+
+        auto result = std::from_chars(
+            value.Text.data(),
+            value.Text.data() + value.Text.size(),
+            amount
+        );
+
+        if(result.ec != std::errc{})
+        {
+            m_Context.Diagnostics.Add(
+                DiagnosticLevel::Error,
+                Current().Location,
+                "Invalid number '" + value.Text  + "'."
+            );
+            Advance();
+            Synchronize();
+            return;
+        }
+
+        if (amount > 0 && amount <= 255) 
+        {
+            type.Text = "u8";
+        }
+        else if(amount > 255)
+        {
+            type.Text = "u16";
+        }
+        else if(amount >= -128 && amount <= 127)
+        {
+            type.Text = "i8";
+        }
+        else if(amount < 0)
+        {
+            type.Text = "i32";
+        }
+    } else if (Check(TokenType::String))
+    {
+        type.Text = "U"+std::to_string(value.Location.Length);
+    }
+
+    Advance();
+
+    auto literalNode = std::make_unique<LiteralNode>(
+        type,
+        value,
+        value.Location
+    );
+
+    node.Children.push_back(std::move(literalNode));
+}
+
+void Parser::ParseReturn(Node& node)
+{
+    if (Current().Text != "return")
+    {
+        return;
+    }
+
+    auto retNode = std::make_unique<ReturnNode>(Current().Location);
+    AdvanceAndSNL();
+
+    ParseExpression(*retNode);
+
+    node.Children.push_back(std::move(retNode));
 }
 
 void Parser::ParseStatement(Node& node)
 {
     SkipNewLines();
+
+    Token curr = Current();
+    if (curr.Text == "return")
+    {
+        ParseReturn(node);
+        return;
+    }
+
     ParseExpression(node);
 }
 

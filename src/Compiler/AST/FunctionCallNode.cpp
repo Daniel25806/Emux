@@ -8,7 +8,7 @@ FunctionCallNode::FunctionCallNode(
 	const Token& name,
     const SourceLocation& location
 ):
-	Node(NodeType::Call, name, location)
+	Node(NodeType::FunctionCall, name, location)
 {
 }
 
@@ -17,7 +17,7 @@ FunctionCallNode::FunctionCallNode(
 	const std::vector<FunctionParameter>& parameters,
     const SourceLocation& location
 ):
-	Node(NodeType::Call, name, location),
+	Node(NodeType::FunctionCall, name, location),
 	Parameters(parameters)
 {
 }

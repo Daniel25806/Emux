@@ -32,13 +32,25 @@ void SemanticAnalyzer::Analyze()
         );
     }
 
-    if (!program.FindSection("Main"))
+    SectionNode* mainSection = program.FindSection("Main");
+    if (!mainSection)
     {
         m_Context.Diagnostics.Add(
             DiagnosticLevel::Fatal,
             {m_Context.Source.GetName(),0,0,0},
             "Section 'Main' not found! This is entry point"
         );
+        return;
+    }
+
+    if (!m_Functions.contains("Main::_Start"))
+    {
+        m_Context.Diagnostics.Add(
+            DiagnosticLevel::Fatal,
+            {m_Context.Source.GetName(),0,0,0},
+            "Function 'Main::_Start' not found! This is entry point"
+        );
+        return;
     }
 }
 

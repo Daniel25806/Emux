@@ -23,20 +23,15 @@ public:
     }
 
     AssignmentNode(
-        const Token& name,
-        const Token& value,
         const SourceLocation& location
     ):
         Node(
             NodeType::Assign,
-            name,
+            {},
             location
-        ),
-        Value(value)
+        )
     {
     }
-
-    Token Value;
 };
 
 }

@@ -16,19 +16,11 @@ public:
         const SourceLocation& location
     ):
         Node(
-            NodeType::Variable,
+            NodeType::Return,
             location
         )
     {
     }
-
-
-    Token Type;
-
-    size_t Size = 0;
-
-    size_t Offset = 0;
-
 };
 
 }
