@@ -7,6 +7,7 @@
 #include <Emux/Compiler/AST/AssignmentNode.hpp>
 #include <Emux/Compiler/AST/LiteralNode.hpp>
 #include <Emux/Compiler/AST/ReturnNode.hpp>
+#include <Emux/Compiler/AST/BinaryNode.hpp>
 #include <stdexcept>
 #include <charconv>
 #include <cctype>
@@ -175,6 +176,18 @@ bool Parser::IsLiteral(
 ) const
 {
     return (token.Type == TokenType::Number) || (token.Type == TokenType::String);
+}
+
+bool Parser::IsBinary() const
+{
+    return Check(TokenType::Plus) || Check(TokenType::Minus);
+}
+
+bool Parser::IsBinary(
+    const Token& token
+) const
+{
+    return (token.Type == TokenType::Plus) || (token.Type == TokenType::Minus);
 }
 
 void Parser::Parse()
@@ -602,7 +615,13 @@ void Parser::ParseExpression(
     Node& node
 )
 {
-    if (Check(TokenType::Identifier))
+    if (IsBinary(Peek(1))) 
+    {
+        ParseBinary(node);
+    } else if (IsLiteral())
+    {
+        ParseLiteral(node);
+    } else if (Check(TokenType::Identifier))
     {
         if (Peek(1).Type == TokenType::LeftParen)
         {
@@ -623,12 +642,6 @@ void Parser::ParseExpression(
         } else {
             ParseVariableCall(node);
         }
-    } else if (Check(TokenType::Keyword))
-    {
-        Token curr = Current();   
-    } else if (IsLiteral())
-    {
-        ParseLiteral(node);
     }
 }
 
@@ -929,7 +942,13 @@ void Parser::ParseReturn(Node& node)
     auto retNode = std::make_unique<ReturnNode>(Current().Location);
     AdvanceAndSNL();
 
-    ParseExpression(*retNode);
+    if (IsLiteral()) 
+    {
+        ParseLiteral(*retNode);
+    } else 
+    {
+        ParseExpression(*retNode);
+    }
 
     node.Children.push_back(std::move(retNode));
 }
@@ -946,6 +965,93 @@ void Parser::ParseStatement(Node& node)
     }
 
     ParseExpression(node);
+}
+
+void Parser::ParseBinary(Node& node)
+{
+    if (!Check(TokenType::Identifier) && !IsBinary(Peek(1)))
+    {
+        return;
+    }
+
+    auto binNode = std::make_unique<BinaryNode>(Peek(1).Location);
+
+    // ✅ Parse operando ESQUERDO diretamente (sem chamar ParseExpression)
+    if (IsLiteral()) 
+    {
+        ParseLiteral(*binNode);
+    } 
+    else if (Check(TokenType::Identifier))
+    {
+        if (Peek(1).Type == TokenType::LeftParen)
+        {
+            ParseFunctionCall(*binNode);
+        } else
+        {
+            ParseVariableCall(*binNode);
+        }
+    }
+    else
+    {
+        m_Context.Diagnostics.Add(
+            DiagnosticLevel::Error,
+            Current().Location,
+            "Left operand is invalid"
+        );
+        Advance();
+        Synchronize();
+        return; // Operando esquerdo inválido
+    }
+
+    // Parse operador
+    if (Check(TokenType::Plus)) 
+    {
+        binNode->Operation = BinaryOperation::Add;
+    } 
+    else if (Check(TokenType::Minus))
+    {
+        binNode->Operation = BinaryOperation::Sub;
+    } 
+    else 
+    {
+        m_Context.Diagnostics.Add(
+            DiagnosticLevel::Error,
+            Current().Location,
+            "This operation not available"
+        );
+        Advance();
+        Synchronize();
+        return;
+    }
+
+    Advance(); // Consome operador
+
+    // ✅ Parse operando DIREITO (aqui SIM pode chamar ParseExpression se necessário)
+    if (IsLiteral()) 
+    {
+        ParseLiteral(*binNode);
+    } 
+    else if (Check(TokenType::Identifier))
+    {
+        if (Peek(1).Type == TokenType::LeftParen)
+        {
+            ParseFunctionCall(*binNode);
+        } else
+        {
+            ParseVariableCall(*binNode);
+        }
+    } else {
+        m_Context.Diagnostics.Add(
+            DiagnosticLevel::Error,
+            Current().Location,
+            "Right operand is invalid"
+        );
+        Advance();
+        Synchronize();
+        return;
+    }
+
+    node.Children.push_back(std::move(binNode));
 }
 
 }

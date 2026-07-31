@@ -9,6 +9,7 @@
 #include <Emux/Compiler/AST/AssignmentNode.hpp>
 #include <Emux/Compiler/AST/LiteralNode.hpp>
 #include <Emux/Compiler/AST/ReturnNode.hpp>
+#include <Emux/Compiler/AST/BinaryNode.hpp>
 
 namespace Emux
 {
@@ -27,6 +28,8 @@ private:
 	void EvaluateVariableCall(VariableCallNode& node, uint8_t* buffer);
 	void EvaluateAssignment(AssignmentNode& node);
 	void EvaluateFunctionDefinition(FunctionNode& node, SectionNode& section);
+	void EvaluateBinary(BinaryNode& node, uint8_t* result, size_t bits);
+	uint64_t HelperEvaluateBinary(Node& n);
 
 private:
 	RuntimeContext& m_Context;

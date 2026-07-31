@@ -32,29 +32,38 @@ void SemanticAnalyzer::Analyze()
         );
     }
 
+    for (auto&& [name, location] : m_FunctionCalls)
+    {
+        if (m_Functions.contains(name)) return;
+
+        m_Context.Diagnostics.Add(
+            DiagnosticLevel::Error,
+            location,
+            "Function '"+
+            name+
+            "' not defined"
+        );
+    }
+
     SectionNode* mainSection = program.FindSection("Main");
     if (!mainSection)
     {
         m_Context.Diagnostics.Add(
             DiagnosticLevel::Fatal,
-            {m_Context.Source.GetName(),0,0,0},
+            mainSection->GetLocation(),
             "Section 'Main' not found! This is entry point"
         );
-        return;
     }
 
     if (!m_Functions.contains("Main::_Start"))
     {
         m_Context.Diagnostics.Add(
             DiagnosticLevel::Fatal,
-            {m_Context.Source.GetName(),0,0,0},
+            mainSection->GetLocation(),
             "Function 'Main::_Start' not found! This is entry point"
         );
-        return;
     }
 }
-
-
 
 void SemanticAnalyzer::AnalyzeSection(
     SectionNode& section
@@ -74,19 +83,14 @@ void SemanticAnalyzer::AnalyzeSection(
 
     for(auto& child : section.Children)
     {
-        if(
-            VariableNode* variable = dynamic_cast<VariableNode*>(child.get()); 
-            variable != nullptr
-        )
+        NodeType type = child->GetType();
+        if(type == NodeType::Variable)
         {
-            AnalyzeVariable(
-                *variable
-            );
-        } else if(
+            VariableNode* variable = static_cast<VariableNode*>(child.get()); 
+            AnalyzeVariable(*variable);
+        } else if(type == NodeType::Function)
+        {
             FunctionNode* function = dynamic_cast<FunctionNode*>(child.get()); 
-            function != nullptr
-        )
-        {
             AnalyzeFunction(
                 *function,
                 section
@@ -186,6 +190,24 @@ void SemanticAnalyzer::AnalyzeVariable(
     }
 }
 
+void SemanticAnalyzer::AnalyzeVariableCall(
+    VariableCallNode& variable
+)
+{
+    std::string name = variable.Name.Text;
+
+    if(!m_Variables.contains(name))
+    {
+        m_Context.Diagnostics.Add(
+            DiagnosticLevel::Error,
+            variable.Name.Location,
+            "Variable '" + name + "' not defined."
+        );
+
+        return;
+    } 
+}
+
 void SemanticAnalyzer::AnalyzeFunction(
     FunctionNode& function,
     SectionNode& section
@@ -201,13 +223,9 @@ void SemanticAnalyzer::AnalyzeFunction(
             function.Name.Location,
             "Function '" + name + "' already defined."
         );
-
-        return;
+    } else {
+        m_Functions.insert(name);
     }
-
-
-    m_Functions.insert(name);
-
 
     auto rtype = TypeParser::Parse(
         function.ReturnType.Text
@@ -244,7 +262,7 @@ void SemanticAnalyzer::AnalyzeFunction(
                 "' already defined."
             );
 
-            return;
+            continue;
         }
 
 
@@ -267,7 +285,53 @@ void SemanticAnalyzer::AnalyzeFunction(
                 name +
                 "'."
             );
+            continue;
         }
+    }
+
+    for (auto& child : function.Children)
+    {
+        AnalyzeExpression(*child);
+    }
+}
+
+void SemanticAnalyzer::AnalyzeFunctionCall(
+    FunctionCallNode& function
+)
+{
+    std::string name = function.Name.Text;
+    m_FunctionCalls.emplace(name, std::cref(function.Name.Location));
+}
+
+void SemanticAnalyzer::AnalyzeAssignment(
+    AssignmentNode& node
+)
+{
+    VariableCallNode var(Token{ .Text = node.Name.Text }, node.GetLocation());
+    AnalyzeVariableCall(var);
+
+    if (node.Children.empty())
+    {
+        throw std::runtime_error("Invalid assignment");
+    }
+
+    AnalyzeExpression(*node.Children[0]);
+}
+
+void SemanticAnalyzer::AnalyzeExpression(
+    Node& node
+)
+{
+    const NodeType type = node.GetType();
+
+    if (type == NodeType::FunctionCall)
+    {
+        auto& functionCall = static_cast<FunctionCallNode&>(node);
+        AnalyzeFunctionCall(functionCall);
+    } else if (type == NodeType::Assign)
+    {
+        auto& assign = static_cast<AssignmentNode&>(node);
+        AnalyzeAssignment(assign);
     }
 }
 

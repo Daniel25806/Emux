@@ -61,6 +61,8 @@ private:
     bool IsVarsSection(const Token& token) const;
     bool IsLiteral() const;
     bool IsLiteral(const Token& token) const;
+    bool IsBinary() const;
+    bool IsBinary(const Token& token) const;
 
 private:
 
@@ -78,6 +80,7 @@ private:
     void ParseAssignment(Node& node);
     void ParseLiteral(Node& node);
     void ParseReturn(Node& node);
+    void ParseBinary(Node& node);
 
     void ParseStatement(Node& node);
 

@@ -32,6 +32,9 @@ public:
     {
     }
 
+    Node(Node&&)=delete;
+    Node& operator=(Node&&)=delete;
+
     virtual ~Node() = default;
 
     Token GetName() const

@@ -29,6 +29,9 @@ enum class TokenType
     Comma, // ,
     Pointer, // ->
 
+    Plus, // +
+    Minus, // -
+
     Equal, // = 
 
     // Controle

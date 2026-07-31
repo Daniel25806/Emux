@@ -1,16 +1,17 @@
 [Vars]
-V0 : U4
+V0 : u8
 V1 : u8
 
 [Alias]
 
 func _Start(i8 i) -> u8 {
 	V1 = 10
+	return 0
 }
 
 [Main: Alias]
  
 func _Start(i8 i) -> u8 {
-	V0 = "alam"
-	return 6
+	V0 = 11 + 1
+	return 0
 }

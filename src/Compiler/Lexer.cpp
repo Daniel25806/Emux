@@ -260,6 +260,26 @@ Token Lexer::ScanToken()
                 location
             };
 
+        case '+':
+            Advance();
+
+            return
+            {
+                TokenType::Plus,
+                "+",
+                location
+            };
+
+        case '-':
+            Advance();
+
+            return
+            {
+                TokenType::Minus,
+                "-",
+                location
+            };
+
     }
 
 
