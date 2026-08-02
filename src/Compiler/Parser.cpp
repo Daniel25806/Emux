@@ -1027,6 +1027,8 @@ void Parser::ParseBinary(Node& node)
     Advance(); // Consome operador
 
     // ✅ Parse operando DIREITO (aqui SIM pode chamar ParseExpression se necessário)
+    ParseExpression(*binNode);
+    /*
     if (IsLiteral()) 
     {
         ParseLiteral(*binNode);
@@ -1050,6 +1052,7 @@ void Parser::ParseBinary(Node& node)
         Synchronize();
         return;
     }
+    */
 
     node.Children.push_back(std::move(binNode));
 }

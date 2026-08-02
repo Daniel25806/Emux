@@ -12,6 +12,6 @@ func _Start(i8 i) -> u8 {
 [Main: Alias]
  
 func _Start(i8 i) -> u8 {
-	V0 = 11 + 1
+	V0 = V1 + 10 - 6
 	return 0
 }

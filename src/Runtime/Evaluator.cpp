@@ -264,6 +264,17 @@ void Evaluator::EvaluateBinary(BinaryNode& node, uint8_t* result, size_t bits)
 
 	if (!n0)
 	{
+		throw std::runtime_error("Invalid binary operation");
+		return;
+	}
+
+	uint64_t v0 = HelperGetValue(*n0);
+	uint64_t value = 0;
+
+	if (node.Operation == BinaryOperation::Not)
+	{
+		value = ~v0;
+		HelperSetValue(value, result, bits);
 		return;
 	}
 
@@ -271,12 +282,11 @@ void Evaluator::EvaluateBinary(BinaryNode& node, uint8_t* result, size_t bits)
 
 	if (!n1)
 	{
+		throw std::runtime_error("Invalid binary operation");
 		return;
 	}
 
-	uint64_t v0 = HelperEvaluateBinary(*n0);
-	uint64_t v1 = HelperEvaluateBinary(*n1);
-	uint64_t value = 0;
+	uint64_t v1 = HelperGetValue(*n1);
 
 	if (node.Operation == BinaryOperation::Add)
 	{
@@ -284,8 +294,34 @@ void Evaluator::EvaluateBinary(BinaryNode& node, uint8_t* result, size_t bits)
 	} else if (node.Operation == BinaryOperation::Sub)
 	{
 		value = v0 - v1;
+	} else if (node.Operation == BinaryOperation::Mul)
+	{
+		value = v0 * v1;
+	} else if (node.Operation == BinaryOperation::Div)
+	{
+		value = v0 / v1;
+	} else if (node.Operation == BinaryOperation::And)
+	{
+		value = v0 & v1;
+	} else if (node.Operation == BinaryOperation::Or)
+	{
+		value = v0 | v1;
+	} else if (node.Operation == BinaryOperation::Xor)
+	{
+		value = v0 ^ v1;
+	} else if (node.Operation == BinaryOperation::Lshift)
+	{
+		value = v0 << v1;
+	} else if (node.Operation == BinaryOperation::Rshift)
+	{
+		value = v0 >> v1;
 	}
 
+	HelperSetValue(value, result, bits);
+}
+
+void Evaluator::HelperSetValue(uint64_t value, uint8_t* result, size_t bits)
+{
 	if(bits < 64)
     {
         uint64_t mask = (1ULL << bits) - 1;
@@ -302,7 +338,7 @@ void Evaluator::EvaluateBinary(BinaryNode& node, uint8_t* result, size_t bits)
     }
 }
 
-uint64_t Evaluator::HelperEvaluateBinary(Node& n)
+uint64_t Evaluator::HelperGetValue(Node& n)
 {
 	NodeType type = n.GetType(); 
 
@@ -326,11 +362,13 @@ uint64_t Evaluator::HelperEvaluateBinary(Node& n)
 		    if(result.ec != std::errc{})
 		    {
 		        throw std::runtime_error("SIGSEV");
+		        return 0;
 		    }
 
 			return amount;
 		} else {
 			throw std::runtime_error("Undefined Behaviour");
+			return;
 		}
 	} else if (type == NodeType::VariableCall)
 	{
@@ -339,6 +377,14 @@ uint64_t Evaluator::HelperEvaluateBinary(Node& n)
 
 		MemoryView& memView = m_Context.Machine.GetMemoryView();
 		return memView.Read(var);
+	} else if (type == NodeType::Binary)
+	{
+		auto& binNode = static_cast<BinaryNode&>(n);
+		uint64_t result;
+
+		EvaluateBinary(binNode, reinterpret_cast<uint8_t*>(&result), 64);
+
+		return result;
 	}
 	return 0;
 }

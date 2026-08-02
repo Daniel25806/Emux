@@ -29,7 +29,8 @@ private:
 	void EvaluateAssignment(AssignmentNode& node);
 	void EvaluateFunctionDefinition(FunctionNode& node, SectionNode& section);
 	void EvaluateBinary(BinaryNode& node, uint8_t* result, size_t bits);
-	uint64_t HelperEvaluateBinary(Node& n);
+	void HelperSetValue(uint64_t value, uint8_t* result, size_t bits);
+	uint64_t HelperGetValue(Node& n);
 
 private:
 	RuntimeContext& m_Context;

@@ -15,7 +15,10 @@ enum class BinaryOperation
     Div,
     And,
     Or,
-    Xor
+    Xor,
+    Not,
+    Lshift,
+    Rshift
 };
 
 class BinaryNode final : public Node
