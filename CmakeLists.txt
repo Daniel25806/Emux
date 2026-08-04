@@ -8,16 +8,10 @@ project(Emux
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-include(FetchContent)
 
-FetchContent_Declare(
-    CLI11
-    GIT_REPOSITORY https://github.com/CLIUtils/CLI11.git
-    GIT_TAG v2.4.2
-)
-
-FetchContent_MakeAvailable(CLI11)
+include(cmake/Dependencies.cmake)
 
 file(GLOB_RECURSE EMUX_SOURCES CONFIGURE_DEPENDS
     src/*.cpp
@@ -36,4 +30,5 @@ target_link_libraries(
     emux
     PRIVATE
     CLI11::CLI11
+    AsmJIT
 )
